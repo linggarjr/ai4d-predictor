@@ -5,7 +5,8 @@ import joblib
 import os 
 import math 
 import datetime 
-import datetime, date, time from sklearn.linear_model 
+import datetime, date, time
+import sklearn.linear_model 
 import LinearRegression
 
 === Konstanta dan File ===
