@@ -1,71 +1,133 @@
-import streamlit as st 
-
-import pandas as pd 
-
-import numpy as np 
-
-import joblib 
-
-import os 
-
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+import os
 import math
-
 from datetime import datetime
-
 from sklearn.linear_model import LinearRegression
 
-Fungsi untuk load atau inisialisasi data.csv ---
+# ==== Konstanta ====
+DATA_FILE = "data.csv"
+MODEL_FILE = "model.pkl"
 
-def load_data(): if not os.path.exists("data.csv"): df = pd.DataFrame(columns=["angka", "tanggal", "jam"]) df.to_csv("data.csv", index=False) return pd.read_csv("data.csv")
+# ==== Inisialisasi File ====
+if not os.path.exists(DATA_FILE):
+    df = pd.DataFrame(columns=["angka", "tanggal", "shio_tahun", "shio_hari",
+                               "ganjil_genap", "besar_kecil", "posisi", "silang_homo", 
+                               "tengah_tepi", "kembang_kempis", "label"])
+    df.to_csv(DATA_FILE, index=False)
 
---- Fungsi menyimpan hasil baru ke data.csv ---
+# ==== Load data dan model ====
+data = pd.read_csv(DATA_FILE)
 
-def save_data(angka, tanggal, jam): df = load_data() new_row = {"angka": angka, "tanggal": tanggal, "jam": jam} df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True) df.to_csv("data.csv", index=False)
+if os.path.exists(MODEL_FILE):
+    model = joblib.load(MODEL_FILE)
+else:
+    model = LinearRegression()
 
---- Fungsi melatih model AI ---
+# ==== Fungsi bantu kombinasi angka ====
+def kombinasi_logika(angka):
+    str_angka = str(angka).zfill(4)
+    digits = [int(d) for d in str_angka]
 
-def train_model(): df = load_data() if len(df) < 2: return None df['angka'] = df['angka'].astype(str).str.zfill(4) df[['d1', 'd2', 'd3', 'd4']] = df['angka'].apply(lambda x: pd.Series([int(x[0]), int(x[1]), int(x[2]), int(x[3])])) df['timestamp'] = pd.to_datetime(df['tanggal'] + ' ' + df['jam']) df['timestamp'] = df['timestamp'].astype(np.int64) // 10**9
+    ganjil_genap = "ganjil" if sum(d % 2 for d in digits) > 2 else "genap"
+    besar_kecil = "besar" if sum(digits) >= 20 else "kecil"
+    posisi = f"{str_angka[0]}-{str_angka[1]}-{str_angka[2]}-{str_angka[3]}"
+    silang_homo = "silang" if len(set(digits)) > 2 else "homo"
+    tengah_tepi = "tengah" if 1000 < angka < 9000 else "tepi"
+    kembang_kempis = "kembang" if digits == sorted(digits) else "kempis"
 
-X = df[['d1', 'd2', 'd3', 'timestamp']]
-y = df['d4']
+    return ganjil_genap, besar_kecil, posisi, silang_homo, tengah_tepi, kembang_kempis
 
-model = LinearRegression()
-model.fit(X, y)
-return model
+# ==== Fungsi Shio ====
+def hitung_shio_tahun(tahun):
+    shio_list = ["Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular",
+                 "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"]
+    return shio_list[(tahun - 4) % 12]
 
---- Fungsi prediksi AI ---
+def hitung_shio_harian(tanggal):
+    day = datetime.strptime(tanggal, "%Y-%m-%d").day
+    return hitung_shio_tahun(day + 2000)  # cara sederhana
 
-def predict_next(model): df = load_data() if model is None or df.empty: return "Model belum dilatih." last = df.iloc[-1] angka = str(last['angka']).zfill(4) timestamp = int(pd.Timestamp.now().timestamp()) X_pred = np.array([[int(angka[0]), int(angka[1]), int(angka[2]), timestamp]]) pred = model.predict(X_pred) pred_digit = max(0, min(9, int(round(pred[0])))) hasil = angka[:3] + str(pred_digit) return hasil.zfill(4)
+# ==== Fungsi prediksi ====
+def prediksi_ai():
+    X = data[["shio_tahun", "shio_hari", "ganjil_genap", "besar_kecil"]].fillna(0).apply(lambda col: pd.factorize(col)[0])
+    y = data["angka"]
+    if len(X) > 5:
+        model.fit(X, y)
+        joblib.dump(model, MODEL_FILE)
+        pred_input = pd.DataFrame([[
+            pd.factorize(data["shio_tahun"])[0][-1],
+            pd.factorize(data["shio_hari"])[0][-1],
+            pd.factorize(data["ganjil_genap"])[0][-1],
+            pd.factorize(data["besar_kecil"])[0][-1]
+        ]])
+        pred = int(model.predict(pred_input)[0]) % 10000
+        return str(pred).zfill(4)
+    return "0000"
 
---- Fungsi logika kombinasi angka ---
+# ==== Streamlit UI ====
+st.title("🔮 Prediksi Angka 4D AI + Shio + Kombinasi")
 
-def kombinasi_logika(angka): angka = str(angka).zfill(4) d = list(map(int, angka)) return { "As": d[0], "Kop": d[1], "Kepala": d[2], "Ekor": d[3], "Ganjil/Genap": sum([i%2 for i in d]), "Besar/Kecil": sum(d)/4 >= 5, "Silang/Homo": len(set(d)) > 2, "Tengah/Tepi": sum([1 if 3<=x<=6 else 0 for x in d]), "Kembang/Kempis": int(d[0] < d[-1]), "Log(angka)": math.log(int(angka)) if int(angka) > 0 else 0 }
+# Input tanggal dan tahun
+tanggal = st.date_input("Tanggal Hari Ini", datetime.today())
+tahun = st.number_input("Tahun Lahir Anda", min_value=1900, max_value=2100, value=2000)
 
---- Fungsi shio tahunan ---
+if st.button("🔢 Prediksi Angka 4D"):
+    shio_tahun = hitung_shio_tahun(tahun)
+    shio_hari = hitung_shio_harian(str(tanggal))
 
-def hitung_shio_tahunan(tahun): daftar_shio = ["Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular", "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"] return daftar_shio[(tahun - 4) % 12]
+    dummy_angka = np.random.randint(0, 10000)
+    ganjil_genap, besar_kecil, posisi, silang_homo, tengah_tepi, kembang_kempis = kombinasi_logika(dummy_angka)
 
---- Fungsi shio harian dari tanggal ---
+    new_row = {
+        "angka": dummy_angka,
+        "tanggal": str(tanggal),
+        "shio_tahun": shio_tahun,
+        "shio_hari": shio_hari,
+        "ganjil_genap": ganjil_genap,
+        "besar_kecil": besar_kecil,
+        "posisi": posisi,
+        "silang_homo": silang_homo,
+        "tengah_tepi": tengah_tepi,
+        "kembang_kempis": kembang_kempis,
+        "label": "prediksi"
+    }
+    data = data.append(new_row, ignore_index=True)
+    data.to_csv(DATA_FILE, index=False)
 
-def hitung_shio_harian(tanggal): try: tgl = pd.to_datetime(tanggal) kode = (tgl.day + tgl.month + tgl.year) % 12 daftar_shio = ["Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular", "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"] return daftar_shio[kode] except: return "Format tanggal salah"
+    hasil = prediksi_ai()
 
---- UI Streamlit ---
+    st.success(f"🎯 Hasil Prediksi: {hasil}")
+    st.info(f"Shio Tahun: {shio_tahun}, Shio Harian: {shio_hari}")
+    st.write("Kombinasi Angka:")
+    st.write(f"Ganjil/Genap: {ganjil_genap}, Besar/Kecil: {besar_kecil}")
+    st.write(f"Posisi: {posisi}, Silang/Homo: {silang_homo}")
+    st.write(f"Tengah/Tepi: {tengah_tepi}, Kembang/Kempis: {kembang_kempis}")
 
-st.set_page_config(layout="wide") st.title("🎯 Prediksi AI Angka 4D + Shio + Kombinasi")
-
-st.subheader("🧮 Input Data") angka_input = st.text_input("Masukkan Angka 4D Terakhir", max_chars=4) tanggal_input = st.text_input("Tanggal", value=str(datetime.date.today())) jam_input = st.text_input("Jam", value=datetime.datetime.now().strftime("%H:%M"))
-
-model = train_model() predicted_number = "" logika_prediksi = {}
-
-if st.button("📊 Prediksi Angka 4D Berikutnya"): if angka_input and len(angka_input) == 4 and angka_input.isdigit(): save_data(angka_input, tanggal_input, jam_input) model = train_model() predicted_number = predict_next(model) logika_prediksi = kombinasi_logika(predicted_number) st.success(f"Prediksi AI 4D Berikutnya: {predicted_number}") else: st.warning("Masukkan angka 4 digit valid terlebih dahulu.")
-
-if st.button("🔁 Latih Ulang Model"): model = train_model() st.success("Model berhasil dilatih ulang dengan data terbaru.")
-
-if predicted_number: st.subheader("🔢 Logika Kombinasi Angka Prediksi") st.write(logika_prediksi)
-
-st.subheader("🔮 Perhitungan Shio") tahun_shio = st.number_input("Masukkan Tahun", min_value=1900, max_value=2100, value=datetime.date.today().year) if st.button("🔮 Hitung Shio Tahunan"): shio_tahun = hitung_shio_tahunan(tahun_shio) st.success(f"Shio Tahun {tahun_shio}: {shio_tahun}")
-
-tanggal_shio = st.text_input("Masukkan Tanggal (YYYY/MM/DD)", value=str(datetime.date.today())) if st.button("🔮 Hitung Shio Harian"): shio_harian = hitung_shio_harian(tanggal_shio) st.success(f"Shio Harian untuk {tanggal_shio}: {shio_harian}")
-
-st.caption("Versi Final - Terintegrasi Penuh oleh AI4D")
-
+# ==== Tambahan Input Data Real ====
+st.subheader("📥 Input Angka Real untuk Latihan Ulang")
+angka_real = st.text_input("Masukkan Angka Real 4D (jika ada)")
+if st.button("Latih Ulang AI"):
+    if angka_real.isdigit() and len(angka_real) == 4:
+        real_angka = int(angka_real)
+        ganjil_genap, besar_kecil, posisi, silang_homo, tengah_tepi, kembang_kempis = kombinasi_logika(real_angka)
+        new_row = {
+            "angka": real_angka,
+            "tanggal": str(datetime.today().date()),
+            "shio_tahun": hitung_shio_tahun(datetime.today().year),
+            "shio_hari": hitung_shio_harian(str(datetime.today().date())),
+            "ganjil_genap": ganjil_genap,
+            "besar_kecil": besar_kecil,
+            "posisi": posisi,
+            "silang_homo": silang_homo,
+            "tengah_tepi": tengah_tepi,
+            "kembang_kempis": kembang_kempis,
+            "label": "real"
+        }
+        data = data.append(new_row, ignore_index=True)
+        data.to_csv(DATA_FILE, index=False)
+        st.success("✅ Data Real berhasil disimpan dan model siap dilatih ulang.")
+    else:
+        st.error("❌ Angka harus terdiri dari 4 digit!")
