@@ -2,94 +2,146 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import datetime
+import random
 import os
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
 
-# Inisialisasi atau buat data.csv jika belum ada
-if not os.path.exists("data.csv"):
-    df_init = pd.DataFrame(columns=["tanggal", "angka"])
-    df_init.to_csv("data.csv", index=False)
+# ===================== SETUP FILE =====================
+DATA_FILE = 'data.csv'
+if not os.path.exists(DATA_FILE):
+    df = pd.DataFrame(columns=['angka', 'tanggal', 'jam'])
+    df.to_csv(DATA_FILE, index=False)
 
-def generate_features(angka):
-    angka_str = str(angka).zfill(4)
-    digits = [int(d) for d in angka_str]
-    ganjil_genap = [d % 2 for d in digits]
-    besar_kecil = [1 if d >= 5 else 0 for d in digits]
-    silang_homo = [1 if digits[0] % 2 != digits[1] % 2 else 0]
-    tengah_tepi = [1 if digits[1] in [4,5,6] or digits[2] in [4,5,6] else 0]
-    kembang_kempis = [1 if digits[2] > digits[1] else 0]
-    return digits + ganjil_genap + besar_kecil + silang_homo + tengah_tepi + kembang_kempis
+# ===================== UTILITAS =====================
+def get_shio_info(tahun_lahir):
+    shio_list = [
+        ("Monyet", [0, 12, 24]),
+        ("Ayam", [1, 13, 25]),
+        ("Anjing", [2, 14, 26]),
+        ("Babi", [3, 15, 27]),
+        ("Tikus", [4, 16, 28]),
+        ("Kerbau", [5, 17, 29]),
+        ("Macan", [6, 18, 30]),
+        ("Kelinci", [7, 19, 31]),
+        ("Naga", [8, 20]),
+        ("Ular", [9, 21]),
+        ("Kuda", [10, 22]),
+        ("Kambing", [11, 23]),
+    ]
+    tahun_shio = tahun_lahir % 12
+    for nama, angka in shio_list:
+        if tahun_shio == angka[0]:
+            return nama, angka
+    return "Tidak diketahui", []
 
-def predict_next_number(data):
-    if len(data) < 10:
-        return np.random.randint(1000, 9999)
-    data["angka"] = data["angka"].astype(str).str.zfill(4).astype(int)
-    data["fitur"] = data["angka"].apply(generate_features)
-    X = np.vstack(data["fitur"].values[:-1])
-    y = np.array([int(str(x).zfill(4)) for x in data["angka"].values[1:]])
-    model = LinearRegression()
-    model.fit(X, y)
-    pred = model.predict([generate_features(data.iloc[-1]["angka"])])
-    return int(str(int(pred[0]))[-4:])
-
-def get_shio(tahun):
-    shio_list = ["Kambing", "Monyet", "Ayam", "Anjing", "Babi", "Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular", "Kuda"]
-    angka_shio = [52, 30, 28, 46, 16, 19, 37, 24, 18, 12, 14, 25]
-    index = tahun % 12
-    return shio_list[index], angka_shio[index]
-
-def display_kombinasi(angka):
-    angka_str = str(angka).zfill(4)
-    digits = [int(d) for d in angka_str]
-    as_digit, kop_digit, kepala_digit, ekor_digit = digits
-    kombinasi = {
-        "As": as_digit,
-        "Kop": kop_digit,
-        "Kepala": kepala_digit,
-        "Ekor": ekor_digit,
-        "Ganjil/Genap": ["Ganjil" if d%2 else "Genap" for d in digits],
-        "Besar/Kecil": ["Besar" if d >= 5 else "Kecil" for d in digits],
-        "Silang/Homo": "Silang" if as_digit%2 != kop_digit%2 else "Homo",
-        "Tengah/Tepi": "Tengah" if kop_digit in [4,5,6] or kepala_digit in [4,5,6] else "Tepi",
-        "Kembang/Kempis": "Kembang" if kepala_digit > kop_digit else "Kempis"
+def kombinasi_logika(angka):
+    str_angka = str(angka).zfill(4)
+    digits = list(map(int, str_angka))
+    ganjil_genap = ["Ganjil" if d % 2 else "Genap" for d in digits]
+    besar_kecil = ["Besar" if d >= 5 else "Kecil" for d in digits]
+    posisi = ["As", "Kop", "Kepala", "Ekor"]
+    silang = "Silang" if len(set(digits)) == 4 else "Homo"
+    tengah_tepi = "Tengah" if 1000 <= angka <= 8999 else "Tepi"
+    kembang = "Kembang" if digits[0] < digits[-1] else "Kempis"
+    return {
+        "Ganjil/Genap": dict(zip(posisi, ganjil_genap)),
+        "Besar/Kecil": dict(zip(posisi, besar_kecil)),
+        "Silang/Homo": silang,
+        "Tengah/Tepi": tengah_tepi,
+        "Kembang/Kempis": kembang
     }
-    return kombinasi
 
-st.set_page_config(page_title="Prediksi 4D AI + Shio + Kombinasi", layout="centered")
-st.title("🔮 Prediksi Angka 4D\nAI + Shio + Kombinasi")
+def latih_model():
+    df = pd.read_csv(DATA_FILE)
+    if len(df) < 10:
+        return None
+    df = df.dropna()
+    X = []
+    y = []
+    for angka in df['angka']:
+        fitur = extract_features(angka)
+        X.append(fitur)
+        y.append(int(str(angka).zfill(4)))
+    scaler = StandardScaler()
+    X = scaler.fit_transform(X)
+    model = LinearRegression().fit(X, y)
+    return model, scaler
 
-today = st.date_input("Tanggal Hari Ini", datetime.date.today())
-tahun_lahir = st.number_input("Tahun Lahir Anda", min_value=1900, max_value=2100, step=1, value=2000)
+def extract_features(angka):
+    digits = list(map(int, str(angka).zfill(4)))
+    total = sum(digits)
+    unique_digits = len(set(digits))
+    return digits + [total, unique_digits]
+
+def prediksi_angka(model, scaler):
+    if model is None:
+        return random.randint(1000, 9999)
+    sample = random.randint(1000, 9999)
+    fitur = extract_features(sample)
+    X = scaler.transform([fitur])
+    pred = int(model.predict(X)[0])
+    return int(str(pred).zfill(4)[-4:])
+
+# ===================== ANTARMUKA =====================
+st.title("🔮 AI + Shio + Kombinasi Prediksi 4D")
+
+# Input tanggal dan tahun lahir
+st.subheader("Tanggal Hari Ini")
+tanggal_hari_ini = st.date_input("Tanggal Hari Ini", datetime.date.today())
+
+st.subheader("Tahun Lahir Anda")
+tahun_lahir = st.number_input("Masukkan Tahun Lahir", min_value=1900, max_value=2100, value=2000)
+
+# Prediksi angka
+st.subheader("Masukkan Angka untuk Prediksi (opsional)")
+input_manual = st.text_input("Masukkan angka (4 digit) atau kosongkan untuk random:")
 
 if st.button("🔢 Prediksi Angka 4D"):
-    data = pd.read_csv("data.csv")
-    prediksi = predict_next_number(data)
-    st.success(f"🎯 Prediksi Angka 4D: {str(prediksi).zfill(4)}")
+    model_scaler = latih_model()
+    model, scaler = model_scaler if model_scaler else (None, None)
 
-    shio_nama, shio_angka = get_shio(tahun_lahir)
-    st.info(f"🐲 Shio Anda: {shio_nama} (Angka: {shio_angka})")
+    if input_manual and input_manual.isdigit() and len(input_manual) == 4:
+        angka_prediksi = int(input_manual)
+    else:
+        angka_prediksi = prediksi_angka(model, scaler)
 
-    kombinasi = display_kombinasi(prediksi)
-    with st.expander("🔍 Logika Kombinasi Angka"):
-        for k,v in kombinasi.items():
-            st.write(f"{k}: {v}")
+    st.success(f"🎯 Hasil Prediksi AI: **{angka_prediksi:04d}**")
 
-st.markdown("---")
+    # Kombinasi logika
+    logika = kombinasi_logika(angka_prediksi)
+    st.subheader("🔍 Analisis Kombinasi Logika")
+    st.json(logika)
+
+    # Info shio
+    nama_shio, angka_shio = get_shio_info(tahun_lahir)
+    st.subheader("🐲 Shio Anda")
+    st.write(f"Shio: **{nama_shio}** | Angka Shio: {', '.join(map(str, angka_shio))}")
+
+# ===================== INPUT ANGKA REAL =====================
 st.subheader("📥 Input Angka Real untuk Latihan Ulang")
 angka_real = st.text_input("Masukkan Angka Real 4D (jika ada)")
-if st.button("Latih Ulang AI") and angka_real:
-    df = pd.read_csv("data.csv")
-    df = pd.concat([df, pd.DataFrame({"tanggal":[str(today)], "angka":[angka_real]})], ignore_index=True)
-    df.to_csv("data.csv", index=False)
-    st.success("Model telah diperbarui dengan data baru.")
+if st.button("Latih Ulang AI"):
+    if angka_real.isdigit() and len(angka_real) == 4:
+        now = datetime.datetime.now()
+        new_data = pd.DataFrame({
+            'angka': [int(angka_real)],
+            'tanggal': [now.date()],
+            'jam': [now.strftime('%H:%M')]
+        })
+        df = pd.read_csv(DATA_FILE)
+        df = pd.concat([df, new_data], ignore_index=True)
+        df.to_csv(DATA_FILE, index=False)
+        st.success("✅ Data berhasil disimpan dan AI dilatih ulang.")
+    else:
+        st.error("❌ Masukkan 4 digit angka yang valid.")
 
-st.markdown("---")
-st.subheader("📊 30 Angka Real Terakhir")
-data = pd.read_csv("data.csv")
-if len(data) > 0:
-    st.dataframe(data.tail(30))
+# ===================== TAMPILKAN 30 ANGKA REAL TERAKHIR =====================
+if os.path.exists(DATA_FILE):
+    st.subheader("📊 30 Angka Real Terakhir")
+    df = pd.read_csv(DATA_FILE).tail(30)
+    st.dataframe(df)
 else:
-    st.write("Belum ada data angka real.")
+    st.warning("Belum ada data yang tersedia.")
 
