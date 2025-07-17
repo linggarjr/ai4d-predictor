@@ -97,3 +97,39 @@ tahun_shio = st.number_input("Masukkan Tahun untuk hitung Shio", min_value=1900,
 if st.button("🔮 Hitung Shio Tahunan"):
     hasil_shio = hitung_shio(tahun_shio)
     st.info("Shio Tahun {}: {}".format(tahun_shio, hasil_shio))
+
+import streamlit as st
+import datetime
+
+# Fungsi Hitung Shio
+def hitung_shio_tahunan(tahun):
+    daftar_shio = [
+        "Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular",
+        "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"
+    ]
+    return daftar_shio[(tahun - 4) % 12]
+
+def hitung_shio_harian(tanggal):
+    try:
+        tanggal_obj = datetime.datetime.strptime(tanggal, "%Y/%m/%d").date()
+    except:
+        return "Format tanggal salah. Gunakan format: YYYY/MM/DD"
+    daftar_shio = [
+        "Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular",
+        "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"
+    ]
+    return daftar_shio[tanggal_obj.toordinal() % 12]
+
+# Input tahun dan tanggal
+st.subheader("🔮 Perhitungan Shio")
+tahun_input = st.number_input("Masukkan Tahun untuk hitung Shio", value=2025, step=1)
+
+if st.button("🔮 Hitung Shio Tahunan"):
+    shio = hitung_shio_tahunan(int(tahun_input))
+    st.info(f"Shio Tahun {tahun_input}: {shio}")
+
+tanggal_input = st.text_input("Masukkan Tanggal untuk Hitung Shio Harian (format: YYYY/MM/DD)", value="2025/07/17")
+
+if st.button("🔮 Hitung Shio Harian"):
+    shio_hari = hitung_shio_harian(tanggal_input)
+    st.success(f"Shio Harian untuk {tanggal_input}: {shio_hari}")
