@@ -181,5 +181,6 @@ if st.button("🔁 Latih Ulang Model (Jika Salah)"):
 
 # Tombol tambahan untuk Shio
 tahun_shio = st.number_input("Masukkan Tahun untuk hitung Shio", min_value=1900, max_value=2100, value=2025)
+
 if st.button("🔮 Hitung Shio Tahunan"):
-    st.info(f"Shio Tahun {tahun_shio}: {hitung_shio(tahun_shio)}")
+    st.info("Shio Tahun {}: {}".format(tahun_shio, hitung_shio(tahun_shio)))
