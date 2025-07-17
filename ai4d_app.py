@@ -4,8 +4,7 @@ import numpy as np
 import joblib 
 import os 
 import math 
-from sklearn.linear_model 
-import LinearRegression from datetime 
+from sklearn.linear_model import LinearRegression from datetime 
 import datetime
 
 ==== Konstanta dan File ====
