@@ -1,132 +1,131 @@
 import streamlit as st
+import random
+import datetime
 import pandas as pd
-import numpy as np
-import joblib
 import os
-import math
-from sklearn.linear_model import LinearRegression
-from datetime import datetime
 
-# ===== Konstanta File =====
+# === Data Initialization ===
 DATA_FILE = "data.csv"
-MODEL_FILE = "model.pkl"
-
-# ===== Inisialisasi File CSV =====
 if not os.path.exists(DATA_FILE):
-    df_init = pd.DataFrame(columns=["angka", "tanggal", "jam"])
-    df_init.to_csv(DATA_FILE, index=False)
+    pd.DataFrame(columns=["angka", "tanggal"]).to_csv(DATA_FILE, index=False)
 
-# ===== Fungsi Fitur Numerik (Algoritma Logaritma) =====
-def fitur_numerik(angka):
-    angka_str = str(angka).zfill(4)
-    as_, kop, kepala, ekor = map(int, angka_str)
-    total = int(angka)
-    return [
-        as_, kop, kepala, ekor,
-        total % 2,                  # Genap/Ganjil
-        total >= 5000,             # Besar/Kecil
-        int(as_ == ekor),          # Silang/Homo
-        int(1 <= kop <= 8),        # Tengah/Tepi
-        int(as_ > kop),            # Kembang/Kempis
-        math.log10(total + 1)      # Logaritma
-    ]
-
-# ===== Model Training =====
-def latih_model():
-    df = pd.read_csv(DATA_FILE)
-    if len(df) < 10:
-        return None
-    X = np.array([fitur_numerik(str(a).zfill(4)) for a in df["angka"]])
-    y = np.roll(df["angka"].values, -1)
-    model = LinearRegression()
-    model.fit(X[:-1], y[:-1])
-    joblib.dump(model, MODEL_FILE)
-    return model
-
-def load_model():
-    return joblib.load(MODEL_FILE) if os.path.exists(MODEL_FILE) else latih_model()
-
-# ===== Prediksi Angka =====
-def prediksi_angka(angka):
-    model = load_model()
-    if model is None:
-        return []
-    fitur = np.array(fitur_numerik(angka)).reshape(1, -1)
-    hasil = model.predict(fitur)[0]
-    top5 = [str(int(hasil + i)).zfill(4) for i in range(5)]
-    return top5
-
-# ===== Perhitungan Shio =====
-shio_list = ["Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular", "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"]
+# === SHIO ===
+shio_list = [
+    "Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular",
+    "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"
+]
 shio_angka = {
-    "Tikus": [2, 15, 28, 41], "Kerbau": [3, 16, 29, 42], "Macan": [4, 17, 30, 43],
-    "Kelinci": [5, 18, 31, 44], "Naga": [6, 19, 32, 45], "Ular": [7, 20, 33, 46],
-    "Kuda": [8, 21, 34, 47], "Kambing": [9, 22, 35, 48], "Monyet": [10, 23, 36, 49],
-    "Ayam": [11, 24, 37], "Anjing": [12, 25, 38], "Babi": [1, 14, 27, 40]
+    "Tikus": [2, 15, 28, 41],
+    "Kerbau": [3, 16, 29, 42],
+    "Macan": [4, 17, 30, 43],
+    "Kelinci": [5, 18, 31, 44],
+    "Naga": [6, 19, 32, 45],
+    "Ular": [7, 20, 33, 46],
+    "Kuda": [8, 21, 34, 47],
+    "Kambing": [9, 22, 35, 48],
+    "Monyet": [10, 23, 36, 49],
+    "Ayam": [11, 24, 37],
+    "Anjing": [12, 25, 38],
+    "Babi": [1, 14, 27, 40]
 }
-
-def hitung_shio_tahunan(tahun):
-    return shio_list[(tahun - 4) % 12]
-
 def hitung_shio_harian(tanggal):
     try:
-        tgl = datetime.strptime(tanggal, "%Y/%m/%d").date()
+        tgl = datetime.datetime.strptime(tanggal, "%Y-%m-%d").date()
         return shio_list[tgl.toordinal() % 12]
     except:
         return "Format tanggal salah"
 
-# ===== UI STREAMLIT =====
-st.set_page_config(page_title="Prediksi AI 4D", layout="centered")
-st.title("🔢 Prediksi Angka 4D AI Lengkap")
-st.caption("Dengan AI, Logika Kombinasi, dan Perhitungan Shio")
+# === Kombinasi Angka ===
+def logika_kombinasi(angka):
+    angka_str = str(angka).zfill(4)
+    as_, kop, kepala, ekor = map(int, angka_str)
+    total = int(angka)
+    return {
+        "As": as_,
+        "Kop": kop,
+        "Kepala": kepala,
+        "Ekor": ekor,
+        "Ganjil/Genap": "Ganjil" if total % 2 else "Genap",
+        "Besar/Kecil": "Besar" if total >= 5000 else "Kecil",
+        "Silang/Homo": "Silang" if as_ != ekor else "Homo",
+        "Tengah/Tepi": "Tengah" if 1 <= kop <= 8 else "Tepi",
+        "Kembang/Kempis": "Kembang" if as_ > kop else "Kempis"
+    }
 
-# ===== Input Manual =====
-angka_input = st.text_input("Masukkan Angka 4D Terakhir", max_chars=4)
-tanggal_input = st.date_input("Tanggal", datetime.today())
-jam_input = st.time_input("Jam", datetime.now().time())
+# === Prediksi Otomatis ===
+def generate_predictions(last3, target=None, n=5):
+    freq = {}
+    for num in last3:
+        for d in num:
+            freq[d] = freq.get(d, 0) + 1
 
-# ===== Tombol Prediksi =====
-if st.button("📥 Simpan dan Prediksi"):
-    if angka_input and len(angka_input) == 4 and angka_input.isdigit():
+    all_digits = set('0123456789')
+    sering = {d for d, f in freq.items() if f >= 2}
+    jarang = all_digits - set(freq.keys())
+
+    preds = []
+    for _ in range(n):
+        if target:
+            prefix, _ = target[:2], target[2:]
+            combo = ''.join(random.choices(tuple(sering), k=1) +
+                            random.choices(tuple(jarang or all_digits), k=1))
+            num = prefix + combo
+        else:
+            num = ''.join(random.choices(tuple(jarang or all_digits), k=2) +
+                          random.choices(tuple(sering or all_digits), k=2))
+
+        # Warna
+        colored = []
+        for ch in num:
+            color = '🔵' if ch in jarang else '🔴'
+            colored.append(f"{ch}{color}")
+        preds.append((''.join(colored), num))
+    return preds, sering, jarang
+
+# === Streamlit UI ===
+st.set_page_config(page_title="Prediksi AI 4D Lengkap", layout="centered")
+st.title("🔢 Prediksi Angka 4D AI")
+st.caption("Fitur lengkap: Shio Harian, Kombinasi, 2D/3D/4D Prediksi")
+
+# === Input Angka ===
+last_input = st.text_input("Masukkan 3 angka 4D terakhir (pisahkan koma)", value="2438,9258,4500")
+target_input = st.text_input("Target angka (opsional, ex: 1784)")
+jumlah = st.slider("Jumlah prediksi", 1, 10, 5)
+
+# === Tanggal untuk Shio ===
+tanggal = st.date_input("Tanggal untuk Shio Harian", value=datetime.date.today())
+
+# === Prediksi ===
+if st.button("🔮 Prediksi Sekarang"):
+    last_parts = [x.strip() for x in last_input.split(',') if len(x.strip()) == 4]
+    if len(last_parts) != 3 or any(not x.isdigit() for x in last_parts):
+        st.error("Masukkan harus 3 angka 4D valid, pisahkan dengan koma.")
+    else:
+        # Simpan ke data.csv
         df = pd.read_csv(DATA_FILE)
-        df.loc[len(df)] = [angka_input, tanggal_input, jam_input.strftime("%H:%M")]
+        for angka in last_parts:
+            df.loc[len(df)] = [angka, tanggal.strftime("%Y-%m-%d")]
         df.to_csv(DATA_FILE, index=False)
 
-        top5 = prediksi_angka(angka_input)
-        if top5:
-            st.success(f"Top 5 Prediksi Angka 4D: {', '.join(top5)}")
-        else:
-            st.warning("Model belum cukup data untuk prediksi.")
+        preds, sering, jarang = generate_predictions(last_parts, target_input or None, jumlah)
+        st.write(f"**Angka sering:** {', '.join(sorted(sering))}")
+        st.write(f"**Angka jarang:** {', '.join(sorted(jarang))}")
+        st.subheader("🎯 Hasil Prediksi:")
+        for col, raw in preds:
+            st.markdown(f"- {col} ➤ `{raw}`")
 
-        # ===== Tampilkan Fitur Kombinasi =====
-        fitur = fitur_numerik(angka_input)
-        label = ["As", "Kop", "Kepala", "Ekor", "Ganjil/Genap", "Besar/Kecil", "Silang/Homo", "Tengah/Tepi", "Kembang/Kempis", "Log(angka)"]
-        st.subheader("🔍 Kombinasi Logika Angka")
-        for i, val in enumerate(fitur):
-            st.write(f"{label[i]}: {val}")
-    else:
-        st.error("Masukkan angka 4 digit yang valid.")
+        # Prediksi 3D dan 2D dari hasil 4D
+        st.subheader("🔢 Prediksi 3D dan 2D:")
+        for _, raw in preds:
+            st.write(f"- 3D: `{raw[-3:]}`, 2D: `{raw[-2:]}`")
 
-# ===== Latih Ulang Model =====
-if st.button("🔁 Latih Ulang Model"):
-    model = latih_model()
-    if model:
-        st.success("Model berhasil dilatih ulang!")
-    else:
-        st.warning("Belum cukup data untuk melatih model.")
+        # Logika Kombinasi dari hasil prediksi pertama
+        st.subheader("🔍 Logika Kombinasi Prediksi Pertama:")
+        kombinasi = logika_kombinasi(preds[0][1])
+        for k, v in kombinasi.items():
+            st.write(f"- {k}: {v}")
 
-# ===== Perhitungan Shio =====
-st.subheader("🔮 Perhitungan Shio")
-
-# Shio Tahunan
-tahun_input = st.number_input("Masukkan Tahun (Shio Tahunan)", min_value=1900, max_value=2100, value=2025)
-if st.button("🔮 Hitung Shio Tahunan"):
-    nama_shio = hitung_shio_tahunan(int(tahun_input))
-    angka_shio = shio_angka.get(nama_shio, [])
-    st.info(f"Shio Tahun {tahun_input}: {nama_shio} → Angka: {angka_shio}")
-
-# Shio Harian
-tanggal_sh = st.text_input("Masukkan Tanggal (YYYY/MM/DD) untuk Shio Harian", value="2025/07/17")
-if st.button("🔮 Hitung Shio Harian"):
-    shio_hari = hitung_shio_harian(tanggal_sh)
-    st.success(f"Shio Harian {tanggal_sh}: {shio_hari} → Angka: {shio_angka.get(shio_hari, [])}")
+        # Shio Harian
+        st.subheader("🔮 Shio Harian:")
+        nama_shio = hitung_shio_harian(tanggal.strftime("%Y-%m-%d"))
+        st.success(f"Shio hari ini: **{nama_shio}** ({shio_angka.get(nama_shio, [])})")
