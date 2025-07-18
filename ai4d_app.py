@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import random
-for datetime import datetime
+for datetime 
+import datetime
 
 # --- Data Shio ---
 shio_list = [
