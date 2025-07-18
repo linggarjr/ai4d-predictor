@@ -56,20 +56,29 @@ if st.button("🔮 Prediksi Sekarang"):
         else:
             df_prediksi = pd.DataFrame(columns=['Tanggal', 'Asal', '2D', '3D', '4D', 'Tipe'])
 
-            # Prediksi untuk setiap angka input
+            # Prediksi langsung
             for angka in angka_terakhir_list[:jumlah_prediksi]:
                 hasil = prediksi_logika(angka)
                 df_prediksi.loc[len(df_prediksi)] = [
                     tanggal_hari_ini, angka, hasil['2D'], hasil['3D'], hasil['4D'], 'Langsung'
                 ]
 
-            # 🔁 Tambahan: Kombinasi antar semua angka input
+            # 🔁 Kombinasi antar angka (misalnya 8865+7065 → gabungan 8865 → hasil: 8059)
             kombinasi = list(itertools.combinations(angka_terakhir_list, 2))
             for a1, a2 in kombinasi:
-                gabungan = a1[-2:] + a2[-2:]  # Ambil 2 digit terakhir dari masing-masing angka
+                gabungan = a1[:2] + a2[-2:]  # Misal 88 dari 8865 + 65 dari 7065 = 8865
                 hasil = prediksi_logika(gabungan)
+
+                # Gunakan hasil 4D langsung dari gabungan (misal: 8059)
+                hasil['4D'] = gabungan.zfill(4)[-4:]
+
                 df_prediksi.loc[len(df_prediksi)] = [
-                    tanggal_hari_ini, f"{a1}+{a2}", hasil['2D'], hasil['3D'], hasil['4D'], 'Kombinasi'
+                    tanggal_hari_ini,
+                    f"{a1}+{a2}",
+                    hasil['2D'],
+                    hasil['3D'],
+                    hasil['4D'],
+                    'Kombinasi'
                 ]
 
             # Tampilkan hasil
