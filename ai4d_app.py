@@ -1,131 +1,117 @@
 import streamlit as st
+import pandas as pd
 import random
 import datetime
-import pandas as pd
-import os
 
-# === Data Initialization ===
-DATA_FILE = "data.csv"
-if not os.path.exists(DATA_FILE):
-    pd.DataFrame(columns=["angka", "tanggal"]).to_csv(DATA_FILE, index=False)
-
-# === SHIO ===
+# --- Data Shio ---
 shio_list = [
     "Tikus", "Kerbau", "Macan", "Kelinci", "Naga", "Ular",
     "Kuda", "Kambing", "Monyet", "Ayam", "Anjing", "Babi"
 ]
-shio_angka = {
-    "Tikus": [2, 15, 28, 41],
-    "Kerbau": [3, 16, 29, 42],
-    "Macan": [4, 17, 30, 43],
-    "Kelinci": [5, 18, 31, 44],
-    "Naga": [6, 19, 32, 45],
-    "Ular": [7, 20, 33, 46],
-    "Kuda": [8, 21, 34, 47],
-    "Kambing": [9, 22, 35, 48],
-    "Monyet": [10, 23, 36, 49],
-    "Ayam": [11, 24, 37],
-    "Anjing": [12, 25, 38],
-    "Babi": [1, 14, 27, 40]
+shio_numbers = {
+    "Tikus": [12, 24, 36, 48],
+    "Kerbau": [11, 23, 35, 47],
+    "Macan": [10, 22, 34, 46],
+    "Kelinci": [9, 21, 33, 45],
+    "Naga": [8, 20, 32, 44],
+    "Ular": [7, 19, 31, 43],
+    "Kuda": [6, 18, 30, 42],
+    "Kambing": [5, 17, 29, 41],
+    "Monyet": [4, 16, 28, 40],
+    "Ayam": [3, 15, 27, 39],
+    "Anjing": [2, 14, 26, 38],
+    "Babi": [1, 13, 25, 37]
 }
-def hitung_shio_harian(tanggal):
-    try:
-        tgl = datetime.datetime.strptime(tanggal, "%Y-%m-%d").date()
-        return shio_list[tgl.toordinal() % 12]
-    except:
-        return "Format tanggal salah"
 
-# === Kombinasi Angka ===
-def logika_kombinasi(angka):
-    angka_str = str(angka).zfill(4)
-    as_, kop, kepala, ekor = map(int, angka_str)
-    total = int(angka)
-    return {
-        "As": as_,
-        "Kop": kop,
-        "Kepala": kepala,
-        "Ekor": ekor,
-        "Ganjil/Genap": "Ganjil" if total % 2 else "Genap",
-        "Besar/Kecil": "Besar" if total >= 5000 else "Kecil",
-        "Silang/Homo": "Silang" if as_ != ekor else "Homo",
-        "Tengah/Tepi": "Tengah" if 1 <= kop <= 8 else "Tepi",
-        "Kembang/Kempis": "Kembang" if as_ > kop else "Kempis"
-    }
+# --- Fungsi Hitung Shio ---
+def get_shio_name(tahun):
+    return shio_list[(tahun - 4) % 12]
 
-# === Prediksi Otomatis ===
+# --- Fungsi Prediksi ---
 def generate_predictions(last3, target=None, n=5):
     freq = {}
     for num in last3:
         for d in num:
             freq[d] = freq.get(d, 0) + 1
-
     all_digits = set('0123456789')
     sering = {d for d, f in freq.items() if f >= 2}
     jarang = all_digits - set(freq.keys())
 
     preds = []
     for _ in range(n):
-        if target:
-            prefix, _ = target[:2], target[2:]
-            combo = ''.join(random.choices(tuple(sering), k=1) +
-                            random.choices(tuple(jarang or all_digits), k=1))
+        if target and len(target) == 4:
+            prefix = target[:2]
+            combo = ''.join(random.choices(tuple(sering), k=1) + random.choices(tuple(jarang), k=1))
             num = prefix + combo
         else:
-            num = ''.join(random.choices(tuple(jarang or all_digits), k=2) +
-                          random.choices(tuple(sering or all_digits), k=2))
+            part = ''.join(random.choices(tuple(jarang), k=2) + random.choices(tuple(sering), k=2))
+            num = part
 
-        # Warna
-        colored = []
-        for ch in num:
-            color = '🔵' if ch in jarang else '🔴'
-            colored.append(f"{ch}{color}")
+        colored = [f"{ch}{'🔵' if ch in jarang else '🔴'}" for ch in num]
         preds.append((''.join(colored), num))
+
     return preds, sering, jarang
 
-# === Streamlit UI ===
-st.set_page_config(page_title="Prediksi AI 4D Lengkap", layout="centered")
-st.title("🔢 Prediksi Angka 4D AI")
-st.caption("Fitur lengkap: Shio Harian, Kombinasi, 2D/3D/4D Prediksi")
+# --- Analisis Kombinasi ---
+def analisis_logika(angka):
+    return {
+        "Ganjil/Genap": {
+            "As": "Ganjil" if int(angka[0]) % 2 else "Genap",
+            "Kop": "Ganjil" if int(angka[1]) % 2 else "Genap",
+            "Kepala": "Ganjil" if int(angka[2]) % 2 else "Genap",
+            "Ekor": "Ganjil" if int(angka[3]) % 2 else "Genap",
+        },
+        "Besar/Kecil": {
+            "As": "Besar" if int(angka[0]) >= 5 else "Kecil",
+            "Kop": "Besar" if int(angka[1]) >= 5 else "Kecil",
+            "Kepala": "Besar" if int(angka[2]) >= 5 else "Kecil",
+            "Ekor": "Besar" if int(angka[3]) >= 5 else "Kecil",
+        }
+    }
 
-# === Input Angka ===
-last_input = st.text_input("Masukkan 3 angka 4D terakhir (pisahkan koma)", value="2438,9258,4500")
-target_input = st.text_input("Target angka (opsional, ex: 1784)")
-jumlah = st.slider("Jumlah prediksi", 1, 10, 5)
+# --- Streamlit UI ---
+st.title("🔮 Prediksi Angka 4D + Shio Harian + Kombinasi")
 
-# === Tanggal untuk Shio ===
-tanggal = st.date_input("Tanggal untuk Shio Harian", value=datetime.date.today())
+# Input
+tanggal = st.date_input("Tanggal untuk Shio Harian", datetime.date.today())
+tahun_lahir = st.number_input("Tahun Lahir Anda", min_value=1900, max_value=2100, value=1991)
+angka_real = st.text_input("Masukkan Angka Real (opsional, pisahkan koma)")
+last3 = st.text_input("Masukkan 3 Angka 4D Terakhir (pisahkan koma)", "2438,9258,4500")
+target = st.text_input("Target Angka 4D (opsional)")
+n = st.slider("Jumlah Prediksi", 1, 10, 5)
 
-# === Prediksi ===
 if st.button("🔮 Prediksi Sekarang"):
-    last_parts = [x.strip() for x in last_input.split(',') if len(x.strip()) == 4]
-    if len(last_parts) != 3 or any(not x.isdigit() for x in last_parts):
-        st.error("Masukkan harus 3 angka 4D valid, pisahkan dengan koma.")
+    parts = [s.strip() for s in last3.split(',') if len(s.strip()) == 4 and s.strip().isdigit()]
+    if len(parts) != 3:
+        st.error("Masukkan harus 3 angka 4D valid dipisah koma.")
     else:
-        # Simpan ke data.csv
-        df = pd.read_csv(DATA_FILE)
-        for angka in last_parts:
-            df.loc[len(df)] = [angka, tanggal.strftime("%Y-%m-%d")]
-        df.to_csv(DATA_FILE, index=False)
+        preds, sering, jarang = generate_predictions(parts, target or None, n)
 
-        preds, sering, jarang = generate_predictions(last_parts, target_input or None, jumlah)
-        st.write(f"**Angka sering:** {', '.join(sorted(sering))}")
-        st.write(f"**Angka jarang:** {', '.join(sorted(jarang))}")
-        st.subheader("🎯 Hasil Prediksi:")
-        for col, raw in preds:
-            st.markdown(f"- {col} ➤ `{raw}`")
+        shio = get_shio_name(tahun_lahir)
+        angka_shio = shio_numbers.get(shio, [])
+        st.success(f"Shio Anda: {shio} - Angka Shio: {angka_shio}")
 
-        # Prediksi 3D dan 2D dari hasil 4D
-        st.subheader("🔢 Prediksi 3D dan 2D:")
-        for _, raw in preds:
-            st.write(f"- 3D: `{raw[-3:]}`, 2D: `{raw[-2:]}`")
+        st.write(f"**Angka Sering Muncul:** {', '.join(sorted(sering))}")
+        st.write(f"**Angka Jarang Muncul:** {', '.join(sorted(jarang))}")
+        st.markdown("---")
+        st.write("### Hasil Prediksi:")
 
-        # Logika Kombinasi dari hasil prediksi pertama
-        st.subheader("🔍 Logika Kombinasi Prediksi Pertama:")
-        kombinasi = logika_kombinasi(preds[0][1])
-        for k, v in kombinasi.items():
-            st.write(f"- {k}: {v}")
+        for colored, raw in preds:
+            st.markdown(f"- {colored} ➤  4D: `{raw}` / 3D: `{raw[-3:]}` / 2D: `{raw[-2:]}`")
+            st.json(analisis_logika(raw))
 
-        # Shio Harian
-        st.subheader("🔮 Shio Harian:")
-        nama_shio = hitung_shio_harian(tanggal.strftime("%Y-%m-%d"))
-        st.success(f"Shio hari ini: **{nama_shio}** ({shio_angka.get(nama_shio, [])})")
+        # Simpan data jika angka_real diisi
+        if angka_real:
+            try:
+                df = pd.read_csv('data.csv')
+            except FileNotFoundError:
+                df = pd.DataFrame(columns=['angka', 'tanggal', 'tahun', 'shio'])
+
+            for angka in angka_real.split(','):
+                angka = angka.strip()
+                if len(angka) == 4 and angka.isdigit():
+                    new_row = pd.DataFrame([[angka, tanggal.strftime('%Y-%m-%d'), tahun_lahir, shio]], columns=df.columns)
+                    df = pd.concat([df, new_row], ignore_index=True)
+
+            df.to_csv('data.csv', index=False)
+            st.success("Data angka real berhasil disimpan!")
