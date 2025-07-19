@@ -6,8 +6,7 @@ import datetime
 import itertools
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from collections
-import Counter
+from collections import Counter
 
 st.set_page_config(page_title="Prediksi Angka 4D AI", layout="centered")
 st.title("🔢 Prediksi Angka 4D AI Lengkap")
