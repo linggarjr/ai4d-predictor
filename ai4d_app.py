@@ -1,111 +1,79 @@
-import streamlit as st
-import random
-from collections import defaultdict
+import streamlit as st 
+import random 
+from collections 
+import Counter
 
-st.set_page_config(page_title="RNG 4D Manipulatif", layout="centered")
-st.title("🎰 Sistem RNG 4D dengan Manipulasi Peluang")
+st.set_page_config(page_title="🧠 RNG 4D", layout="centered") st.title("🎰 Sistem RNG 4D dan Manipulasi Peluang")
 
-# Inisialisasi session state
-if "riwayat" not in st.session_state:
-    st.session_state.riwayat = []
-if "bagus" not in st.session_state:
-    st.session_state.bagus = []
-if "buruk" not in st.session_state:
-    st.session_state.buruk = []
-if "bobot" not in st.session_state:
-    st.session_state.bobot = defaultdict(lambda: 1)
-if "angka_langka" not in st.session_state:
-    st.session_state.angka_langka = defaultdict(int)
+Inisialisasi session state
 
-# Data awal
-angka_awal = [2215, 2039, 9361, 9739, 9467, 3114, 8296, 1034, 1032, 5823,
-              3754, 6440, 5891, 7496, 5979, 6948, 7947, 372, 1036, 1666,
-              7894, 4846, 9286, 4239, 5384, 516, 7139, 8573, 1032, 881, 1711,
-              8208, 8333, 2135, 1565, 3312, 6904, 4299, 557]
+if "angka_terakhir" not in st.session_state: st.session_state.angka_terakhir = "" if "riwayat_rng" not in st.session_state: st.session_state.riwayat_rng = [] if "angka_bagus" not in st.session_state: st.session_state.angka_bagus = [] if "angka_buruk" not in st.session_state: st.session_state.angka_buruk = []
 
-# Update bobot awal
-for angka in angka_awal:
-    angka_str = str(angka).zfill(4)
-    st.session_state.bobot[angka_str] += 5
+Fungsi generate angka 4D
 
-# Fungsi untuk manipulasi RNG
+def generate_angka(): angka = str(random.randint(0, 9999)).zfill(4) st.session_state.angka_terakhir = angka st.session_state.riwayat_rng.append(angka)
 
-def generate_rng():
-    pool = []
-    for angka, bbt in st.session_state.bobot.items():
-        pool.extend([angka] * bbt)
-    return random.choice(pool)
+Fungsi masukkan angka manual
 
-# Fungsi untuk update bobot
+def masukkan_angka_manual(angka): if len(angka) == 4 and angka.isdigit(): st.session_state.angka_terakhir = angka st.session_state.riwayat_rng.append(angka) else: st.warning("Masukkan angka 4 digit yang valid.")
 
-def update_bobot(angka, status):
-    if status == "bagus":
-        st.session_state.bobot[angka] += 50
-    elif status == "buruk":
-        st.session_state.bobot[angka] = max(1, st.session_state.bobot[angka] // 3)
+Fungsi kombinasi acak angka bagus + buruk
 
-# Tombol generate
-if st.button("🎲 Generate Angka 4D"):
-    angka_baru = generate_rng()
-    st.session_state.riwayat.insert(0, angka_baru)
-    st.session_state.angka_langka[angka_baru] += 1
-    if st.session_state.angka_langka[angka_baru] == 3:
-        st.session_state.bobot[angka_baru] += 1000
-        st.toast(f"Angka langka ditemukan: {angka_baru} — bobot dinaikkan drastis!", icon="🔥")
+def kombinasi_acak(): if len(st.session_state.angka_bagus) > 0 and len(st.session_state.angka_buruk) > 0: bagus = random.choice(st.session_state.angka_bagus) buruk = random.choice(st.session_state.angka_buruk)
 
-# Input manual
-st.subheader("✍️ Masukkan Angka Manual (4D)")
-manual_input = st.text_input("Masukkan angka 4 digit:", max_chars=4)
-if st.button("🔍 Cek dan Masukkan"):
-    if manual_input.isdigit() and len(manual_input) == 4:
-        st.session_state.riwayat.insert(0, manual_input)
-        st.session_state.angka_langka[manual_input] += 1
-        st.success(f"Angka {manual_input} dimasukkan ke sistem RNG")
+bagus2 = bagus[-2:]
+    buruk2 = buruk[:2]
+
+    metode = random.choice(["bagus+buruk", "buruk+bagus", "acak per digit"])
+
+    if metode == "bagus+buruk":
+        kombinasi = bagus2 + buruk2
+    elif metode == "buruk+bagus":
+        kombinasi = buruk2 + bagus2
     else:
-        st.error("Masukkan harus 4 digit angka valid.")
+        digit1 = random.choice([bagus[0], buruk[0]])
+        digit2 = random.choice([bagus[1], buruk[1]])
+        digit3 = random.choice([bagus[2], buruk[2]])
+        digit4 = random.choice([bagus[3], buruk[3]])
+        kombinasi = digit1 + digit2 + digit3 + digit4
 
-# Kombinasi angka bagus dan buruk
-st.subheader("🔀 Kombinasi Angka Bagus + Buruk")
-if st.session_state.bagus and st.session_state.buruk:
-    hasil_kombinasi = []
-    for a in st.session_state.bagus:
-        for b in st.session_state.buruk:
-            a_str, b_str = str(a).zfill(4), str(b).zfill(4)
-            kombinasi1 = a_str[:2] + b_str[2:]
-            kombinasi2 = b_str[:2] + a_str[2:]
-            hasil_kombinasi.extend([kombinasi1, kombinasi2])
-
-    st.write(f"🔢 Total kombinasi: {len(hasil_kombinasi)}")
-    st.write(", ".join(hasil_kombinasi[:20]))
-
-    if st.button("➕ Masukkan Kombinasi ke Sistem"):
-        for komb in hasil_kombinasi:
-            st.session_state.bobot[komb] += 20
-        st.success("Kombinasi dimasukkan dan diberi bobot tinggi!")
+    st.session_state.angka_terakhir = kombinasi
+    st.session_state.riwayat_rng.append(kombinasi)
+    st.success(f"Kombinasi ({metode}): {kombinasi}")
 else:
-    st.info("Tambahkan setidaknya 1 angka bagus dan 1 angka buruk untuk membentuk kombinasi.")
+    st.info("Tambahkan setidaknya 1 angka bagus dan 1 angka buruk untuk membuat kombinasi.")
 
-# Tampilkan hasil
-st.subheader("🎯 Angka Terakhir: ")
-if st.session_state.riwayat:
-    angka_terakhir = st.session_state.riwayat[0]
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.metric("🎰 Angka", angka_terakhir)
-    with col2:
-        if st.button("✅ Bagus", key="good"):
-            st.session_state.bagus.append(angka_terakhir)
-            update_bobot(angka_terakhir, "bagus")
-        if st.button("❌ Buruk", key="bad"):
-            st.session_state.buruk.append(angka_terakhir)
-            update_bobot(angka_terakhir, "buruk")
+Bagian antarmuka
 
-# Riwayat
-st.subheader("📜 Riwayat Angka RNG")
-st.write(", ".join(st.session_state.riwayat[:20]))
+st.button("🎲 Generate Angka 4D", on_click=generate_angka)
 
-# Statistik
-st.subheader("📊 Statistik Manipulasi")
-st.write(f"✅ Total Angka Bagus: {len(st.session_state.bagus)}")
-st.write(f"❌ Total Angka Buruk: {len(st.session_state.buruk)}")
-st.write(f"🔥 Angka Langka (Muncul ≥3x): {[k for k,v in st.session_state.angka_langka.items() if v >=3]}")
+with st.expander("✍️ Masukkan Angka Manual (4D)"): angka_manual = st.text_input("Masukkan angka 4 digit:", value="") if st.button("🔍 Cek dan Masukkan"): masukkan_angka_manual(angka_manual)
+
+Menandai angka sebagai bagus atau buruk
+
+if st.session_state.angka_terakhir: st.markdown("### 🎯 Angka Terakhir:") st.code(st.session_state.angka_terakhir)
+
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("✅ Bagus"):
+        if st.session_state.angka_terakhir not in st.session_state.angka_bagus:
+            st.session_state.angka_bagus.append(st.session_state.angka_terakhir)
+with col2:
+    if st.button("❌ Buruk"):
+        if st.session_state.angka_terakhir not in st.session_state.angka_buruk:
+            st.session_state.angka_buruk.append(st.session_state.angka_terakhir)
+
+Kombinasi acak
+
+st.subheader("🔀 Kombinasi Acak Angka Bagus + Buruk") st.button("🔁 Buat Kombinasi Acak", on_click=kombinasi_acak)
+
+Riwayat angka
+
+st.subheader("📜 Riwayat Angka RNG") st.write(", ".join(st.session_state.riwayat_rng[-20:]))
+
+Statistik Manipulasi
+
+st.subheader("📊 Statistik Manipulasi") st.write(f"✅ Total Angka Bagus: {len(st.session_state.angka_bagus)}") st.write(f"❌ Total Angka Buruk: {len(st.session_state.angka_buruk)}")
+
+angka_langka = [angka for angka, count in Counter(st.session_state.riwayat_rng).items() if count >= 3] if angka_langka: st.write(f"🔥 Angka Langka (Muncul ≥3x): {angka_langka}") else: st.write("🔥 Angka Langka (Muncul ≥3x): []")
+
