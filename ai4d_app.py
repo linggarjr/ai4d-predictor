@@ -1,112 +1,53 @@
-import streamlit as st
 import random
-from collections import Counter
+import streamlit as st
 
-st.set_page_config(page_title="🎰 RNG 4D Belajar", layout="centered")
-st.title("🧠 Sistem RNG 4D + Manipulasi Peluang")
+st.set_page_config(page_title="🎰 RNG 4D Kombinasi", layout="wide")
+st.title("🎯 Sistem RNG 4D dengan Pedoman Manipulasi")
 
-# Inisialisasi session
-if "angka_terakhir" not in st.session_state:
-    st.session_state.angka_terakhir = ""
-if "riwayat_rng" not in st.session_state:
-    st.session_state.riwayat_rng = []
-if "angka_bagus" not in st.session_state:
-    st.session_state.angka_bagus = []
-if "angka_buruk" not in st.session_state:
-    st.session_state.angka_buruk = []
+# Angka pedoman dari user
+pedoman_angka = [
+    "2215", "2039", "9361", "9739", "9467", "3114", "8296", "1034", "1032", "5823",
+    "3754", "6440", "5891", "7496", "5979", "6948", "7947", "0372", "1036", "1666",
+    "7894", "4846", "9286", "4239", "5384", "0516", "7139", "8573", "0881", "1711",
+    "8208", "8333", "2135", "1565", "3312", "6904", "4299", "0557"
+]
 
-# Fungsi generate angka 4D standar
-def generate_angka():
-    angka = str(random.randint(0, 9999)).zfill(4)
-    st.session_state.angka_terakhir = angka
-    st.session_state.riwayat_rng.append(angka)
+st.header("📝 Masukkan Angka Manual")
+input_manual = st.text_input("Masukkan 1–5 angka acak (pisahkan koma):", placeholder="Contoh: 2215,1032")
 
-# Fungsi manipulasi berdasarkan angka manual
-def belajar_dari_input(angka):
-    # Simulasi manipulasi berdasarkan angka manual
-    digit_mutasi = ''.join(random.sample(angka, 4))  # acak posisi digit
-    mutasi_angka = digit_mutasi
-
-    # Kombinasi dengan angka bagus/buruk (jika ada)
-    if st.session_state.angka_bagus and st.session_state.angka_buruk:
-        bagus = random.choice(st.session_state.angka_bagus)
-        buruk = random.choice(st.session_state.angka_buruk)
-        kombinasi = random.choice([
-            bagus[:2] + buruk[-2:],  # BG depan + BR belakang
-            buruk[:2] + bagus[-2:],  # BR depan + BG belakang
-            ''.join(random.sample(bagus + buruk, 4))  # acak campur
-        ])
-        hasil = random.choice([mutasi_angka, kombinasi])
-    else:
-        hasil = mutasi_angka
-
-    st.session_state.angka_terakhir = hasil
-    st.session_state.riwayat_rng.append(hasil)
+# Fungsi sistem RNG + kombinasi manipulasi
+def rng_prediksi_berpedoman(input_list, pedoman):
+    hasil = []
+    for idx, angka in enumerate(input_list):
+        angka = angka.zfill(4)
+        seed = sum(int(d) for d in angka)
+        random.seed(seed)
+        prediksi = [random.choice(pedoman) for _ in range(3)]
+        kombinasi = []
+        for p in prediksi:
+            kombinasi.append(angka[:2] + p[2:])  # gabung depan input + belakang prediksi
+            kombinasi.append(p[:2] + angka[2:])  # gabung depan prediksi + belakang input
+        hasil.append({
+            "input": angka,
+            "prediksi_rng": prediksi,
+            "kombinasi": kombinasi[:3]
+        })
     return hasil
 
-# Fungsi input angka manual + hasilkan angka baru
-def proses_input_manual(angka):
-    if len(angka) == 4 and angka.isdigit():
-        hasil = belajar_dari_input(angka)
-        st.success(f"🎯 Hasil dari input {angka} → {hasil}")
+# Proses input dan tampilkan hasil
+if input_manual:
+    cleaned = input_manual.replace(" ", "").split(",")
+    valid_input = [x for x in cleaned if x.isdigit() and len(x) <= 4]
+    if 1 <= len(valid_input) <= 5:
+        output = rng_prediksi_berpedoman(valid_input, pedoman_angka)
+        for blok in output:
+            st.subheader(f"🔢 Input: {blok['input']}")
+            st.write("🎲 Prediksi RNG dari Pedoman:")
+            st.write(", ".join(blok["prediksi_rng"]))
+            st.write("🧬 Kombinasi Manipulasi:")
+            st.write(", ".join(blok["kombinasi"]))
+            st.markdown("---")
     else:
-        st.warning("⚠️ Masukkan 4 digit angka valid.")
-
-# Fungsi kombinasi acak dari angka bagus + buruk
-def kombinasi_bagus_buruk():
-    if st.session_state.angka_bagus and st.session_state.angka_buruk:
-        bagus = random.choice(st.session_state.angka_bagus)
-        buruk = random.choice(st.session_state.angka_buruk)
-        kombinasi = random.choice([
-            bagus[:2] + buruk[-2:], 
-            buruk[:2] + bagus[-2:], 
-            ''.join(random.sample(bagus + buruk, 4))
-        ])
-        st.session_state.angka_terakhir = kombinasi
-        st.session_state.riwayat_rng.append(kombinasi)
-        st.success(f"🔀 Kombinasi Acak: {kombinasi}")
-    else:
-        st.warning("Minimal 1 angka bagus & buruk diperlukan.")
-
-# Tombol generate biasa
-st.button("🎲 Generate Angka Acak", on_click=generate_angka)
-
-# Input manual angka (memicu RNG baru)
-with st.expander("✍️ Masukkan Angka Manual (4D) → Hasilkan RNG"):
-    angka_input = st.text_input("Masukkan angka 4 digit:")
-    if st.button("🔁 Proses Angka Manual"):
-        proses_input_manual(angka_input)
-
-# Tampilkan angka terakhir
-if st.session_state.angka_terakhir:
-    st.markdown("### 🎯 Angka Terakhir:")
-    st.code(st.session_state.angka_terakhir)
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("✅ Tandai Sebagai Bagus"):
-            if st.session_state.angka_terakhir not in st.session_state.angka_bagus:
-                st.session_state.angka_bagus.append(st.session_state.angka_terakhir)
-    with col2:
-        if st.button("❌ Tandai Sebagai Buruk"):
-            if st.session_state.angka_terakhir not in st.session_state.angka_buruk:
-                st.session_state.angka_buruk.append(st.session_state.angka_terakhir)
-
-# Kombinasi angka bagus + buruk
-st.subheader("🔀 Kombinasi Acak dari Bagus + Buruk")
-st.button("⚡ Buat Kombinasi Acak", on_click=kombinasi_bagus_buruk)
-
-# Riwayat angka RNG
-st.subheader("📜 Riwayat RNG (Terakhir 20):")
-st.write(", ".join(st.session_state.riwayat_rng[-20:]))
-
-# Statistik angka bagus/buruk
-st.subheader("📊 Statistik Manipulasi")
-st.write(f"✅ Angka Bagus: {len(st.session_state.angka_bagus)}")
-st.write(f"❌ Angka Buruk: {len(st.session_state.angka_buruk)}")
-
-# Tampilkan angka langka (yang sering muncul)
-counter = Counter(st.session_state.riwayat_rng)
-angka_langka = [a for a, c in counter.items() if c >= 3]
-if angka_langka:
-    st.write(f"🔥 Angka Langka (Muncul ≥3x): {angka_langka}")
+        st.warning("Masukkan minimal 1 dan maksimal 5 angka (1-4 digit) dipisahkan koma.")
+else:
+    st.info("Masukkan angka lalu tekan enter untuk melihat prediksi.")
