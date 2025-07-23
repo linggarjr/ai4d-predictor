@@ -4,17 +4,15 @@ from collections import Counter
 import json
 import os
 
-# File penyimpanan pembelajaran
+# ===== FILE LATIHAN =====
 DATA_LATIH_FILE = "data_latih.json"
-
-# Load data pembelajaran
 if os.path.exists(DATA_LATIH_FILE):
     with open(DATA_LATIH_FILE, "r") as f:
         data_latih = json.load(f)
 else:
     data_latih = []
 
-# Angka dasar pedoman
+# ===== DATA PEDOMAN (ANGKA DASAR) =====
 data_pedoman = [
     2215, 2039, 9361, 9739, 9467, 3114, 8296, 1034, 1032, 5823,
     3754, 6440, 5891, 7496, 5979, 6948, 7947, 372, 1036, 1666,
@@ -22,9 +20,11 @@ data_pedoman = [
     1711, 8208, 8333, 2135, 1565, 3312, 6904, 4299, 557
 ]
 
+# ===== FORMAT ANGKA 4 DIGIT =====
 def format_angka(angka):
     return str(angka).zfill(4)
 
+# ===== ANALISA POLA DARI DATA LATIH =====
 def analisa_pola(data_latih):
     awalan = Counter()
     akhiran = Counter()
@@ -37,6 +37,7 @@ def analisa_pola(data_latih):
             digit[d] += 1
     return awalan, akhiran, digit
 
+# ===== GENERATE ANGKA DENGAN POLA =====
 def generate_rnd_angka(pedoman, data_latih, jumlah=10):
     hasil = []
     awalan, akhiran, digit = analisa_pola(data_latih)
@@ -44,8 +45,8 @@ def generate_rnd_angka(pedoman, data_latih, jumlah=10):
     for _ in range(jumlah):
         if data_latih:
             # Gunakan pola dominan
-            awalan_terbaik = awalan.most_common(3)
-            akhiran_terbaik = akhiran.most_common(3)
+            awalan_terbaik = awalan.most_common(5)
+            akhiran_terbaik = akhiran.most_common(5)
             a = random.choice(awalan_terbaik)[0]
             b = random.choice(akhiran_terbaik)[0]
             hasil.append(a + b)
@@ -54,12 +55,14 @@ def generate_rnd_angka(pedoman, data_latih, jumlah=10):
             hasil.append(angka)
     return hasil
 
+# ===== SIMPAN LATIHAN =====
 def simpan_latihan(angka):
-    if angka not in data_latih:
+    if int(angka) not in data_latih:
         data_latih.append(int(angka))
         with open(DATA_LATIH_FILE, "w") as f:
             json.dump(data_latih, f)
 
+# ===== UI STREAMLIT =====
 st.set_page_config(page_title="🧠 RNG 4D", layout="wide")
 st.title("🧠 Sistem RNG 4D + Pembelajaran Dinamis")
 
@@ -73,17 +76,18 @@ if submit:
         hasil_rng = generate_rnd_angka(data_pedoman + angka_input, data_latih, jumlah=20)
 
         st.subheader("🔢 Hasil Prediksi RNG:")
-        for angka in hasil_rng:
+        for i, angka in enumerate(hasil_rng):
             col1, col2 = st.columns([3,1])
             with col1:
                 st.markdown(f"### 🎯 {angka}")
             with col2:
-                if st.button("✅ Ini benar", key=f"b_{angka}"):
+                if st.button("✅ Ini benar", key=f"b_{angka}_{i}"):
                     simpan_latihan(angka)
                     st.success(f"Angka {angka} disimpan sebagai pola bagus.")
     except Exception as e:
         st.error(f"Terjadi kesalahan: {e}")
 
+# ===== SIDEBAR =====
 st.sidebar.header("📊 Data Latih")
 if data_latih:
     st.sidebar.write([format_angka(d) for d in data_latih])
