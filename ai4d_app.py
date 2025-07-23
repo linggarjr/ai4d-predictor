@@ -1,6 +1,6 @@
 import streamlit as st 
-import random from collections 
-import Counter 
+import random
+from collections import Counter 
 import json 
 import os
 
